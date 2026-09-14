@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIENVENUE SUR NOTRE SYSTEME DE TARIFICATION</title>
+
+    <!-- Configuration PWA pour installation sur mobile -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0651f3">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Tarification">
+
+    <!-- Leaflet CSS (Carte) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #161516;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+            margin: 0;
+            width: 100%;
+        }
+
+        .app-card {
+            width: 100%;
+            max-width: 480px;
+            height: 90vh;
+            background: #fdfcfc;
+            border: 2px solid #0a0a0a;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .header {
+            background-color: #0651f3;
+            color: #ffffff;
+            padding: 14px;
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        .content {
+            padding: 15px;
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 65px;
+        }
+
+        /* Navigation inférieure */
+        .nav-bar-bottom {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 55px;
+            display: flex;
+            background-color: #ecf0f1;
+            border-top: 2px solid #0680fa;
+            z-index: 1000;
+        }
+
+        .nav-btn {
+            flex: 1;
+            padding: 10px 5px;
+            background: none;
+            border: none;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #037ef8;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .nav-btn:not(:last-child) {
+            border-right: 1px solid #bdc3c7;
+        }
+
+        .nav-btn.active {
+            background-color: #f3f3fc;
+            color: #402bb9;
+        }
+
+        /* Sections des Vues */
+        .view-section {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            height: 100%;
+        }
+
+        .view-section.active {
+            display: flex;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-group label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #069df5;
+            text-transform: uppercase;
+        }
+
+        .form-group input {
+            padding: 9px;
+            border: 2px solid #171816;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .input-box {
+            display: flex;
+            gap: 6px;
+        }
+
+        .input-box input {
+            flex: 1;
+        }
+
+        .btn-gps {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 0 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+
+        .btn-gps:hover {
+            background-color: #219150;
+        }
+
+        .btn-main {
+            width: 100%;
+            padding: 12px;
+            background-color: #087cf0;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+
+        .btn-main:hover {
+            background-color: #1a252f;
+        }
+
+        #map {
+            width: 100%;
+            height: 180px;
+            border: 2px solid #2c3e50;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+
+        .result-box {
+            background-color: #f8f9fa;
+            border: 2px dashed #2c3e50;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 0.82rem;
+            color: #2c3e50;
+            line-height: 1.4;
+        }
+
+        .result-box h4 {
+            margin-bottom: 4px;
+            text-align: center;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 2px;
+        }
+
+        .price-tag {
+            color: #27ae60;
+            font-weight: bold;
+            font-size: 1.15rem;
+        }
+
+        .breakdown-list {
+            margin-top: 4px;
+            font-size: 0.75rem;
+            color: #555;
+        }
+
+        .status-message {
+            font-size: 0.85rem;
+            text-align: center;
+            padding: 8px;
+            border-radius: 6px;
+            display: none;
+            margin-top: 5px;
+        }
+
+        .status-message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app-card">
+        <div class="header">
+            Course Urbaine - Tarification
+        </div>
+
+        <div class="content">
+
+            <!-- 1. ONGLET : SE CONNECTER -->
+            <div id="view-login" class="view-section active">
+                <form id="form-login" onsubmit="gererConnexion(event)">
+                    <div class="form-group">
+                        <label>Numéro de téléphone / Email :</label>
+                        <input type="text" id="loginIdentifiant" required placeholder="Ex: 0999757467">
+                    </div>
+                    <div class="form-group" style="margin-top: 10px;">
+                        <label>Mot de passe :</label>
+                        <input type="password" id="loginPassword" required placeholder="••••••••">
+                    </div>
+                    <button type="submit" class="btn-main" style="margin-top: 15px;">Se Connecter</button>
+                </form>
+                <div id="msg-login" class="status-message"></div>
+            </div>
+
+            <!-- 2. ONGLET : TRAJET -->
+            <div id="view-trajet" class="view-section">
+                <div class="form-group">
+                    <label>Point de Départ :</label>
+                    <div class="input-box">
+                        <input type="text" id="inputDepart" placeholder="GPS ou clic sur la carte">
+                        <button class="btn-gps" onclick="activerGPSDepart()">GPS</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Destination :</label>
+                    <div class="input-box">
+                        <input type="text" id="inputDestination" placeholder="Clic sur la carte">
+                    </div>
+                </div>
+
+                <div id="map"></div>
+
+                <button class="btn-main" onclick="traiterCalculItineraire()">Tracer & Calculer Tarif</button>
+
+                <div id="resultats" class="result-box">
+                    <h4>Détails de l'itinéraire</h4>
+                    Sélectionnez le départ et la destination pour afficher la distance et le tarif.
+                </div>
+            </div>
+
+        </div>
+
+        <!-- BARRE DE NAVIGATION EN BAS -->
+        <div class="nav-bar-bottom">
+            <button class="nav-btn active" id="tab-login" onclick="afficherVue('login')">Se Connecter</button>
+            <button class="nav-btn" id="tab-trajet" onclick="afficherVue('trajet')">Trajet</button>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Logique Métier (Classes UML)
+        class Tarification {
+            constructor(coutParKm = 1000, prixPriseEnCharge = 500, coutParMin = 100) {
+                this.coutParKm = coutParKm;
+                this.prixPriseEnCharge = prixPriseEnCharge;
+                this.coutParMin = coutParMin;
+            }
+
+            calculerLeMontant(distanceKm, dureeMinutes) {
+                const partDistance = distanceKm * this.coutParKm;
+                const partDuree = dureeMinutes * this.coutParMin;
+                const montantTotal = this.prixPriseEnCharge + partDistance + partDuree;
+
+                return {
+                    partDistance: Math.round(partDistance),
+                    partDuree: Math.round(partDuree),
+                    montantTotal: Math.round(montantTotal)
+                };
+            }
+        }
+
+        class Itineraire {
+            constructor(coordsDepart, coordsArrivee) {
+                this.coordsDepart = coordsDepart;
+                this.coordsArrivee = coordsArrivee;
+            }
+
+            calculerDistanceReelle() {
+                let R = 6371;
+                let dLat = (this.coordsArrivee.lat - this.coordsDepart.lat) * Math.PI / 180;
+                let dLon = (this.coordsArrivee.lng - this.coordsDepart.lng) * Math.PI / 180;
+                let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(this.coordsDepart.lat * Math.PI / 180) * Math.cos(this.coordsArrivee.lat * Math.PI / 180) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                return R * c * 1.25;
+            }
+        }
+
+        let tarificationService = new Tarification(1000, 500, 100);
+        let map, markerDepart, markerArrivee, polylineTrajet;
+        let coordsDepart = null;
+        let coordsArrivee = null;
+        let LAT_CENTRE = -0.1416;
+        let LNG_CENTRE = 29.2912;
+
+        window.onload = function () {
+            initMap();
+            // Enregistrement du Service Worker pour PWA
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js').catch(err => console.log('SW error:', err));
+            }
+        };
+
+        function initMap() {
+            if (map) return;
+            map = L.map('map').setView([LAT_CENTRE, LNG_CENTRE], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 18,
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+
+            map.on('click', function (e) {
+                if (!coordsDepart) {
+                    setDepartCoords(e.latlng.lat, e.latlng.lng, "Point départ");
+                } else {
+                    setDestinationCoords(e.latlng.lat, e.latlng.lng, "Destination");
+                }
+            });
+        }
+
+        function afficherVue(nomVue) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(`view-${nomVue}`).classList.add('active');
+            document.getElementById(`tab-${nomVue}`).classList.add('active');
+
+            if (nomVue === 'trajet' && map) {
+                setTimeout(() => map.invalidateSize(), 200);
+            }
+        }
+
+        function activerGPSDepart() {
+            if ("geolocation" in navigator) {
+                document.getElementById('resultats').innerHTML = "<i>Recherche GPS...</i>";
+                navigator.geolocation.getCurrentPosition(function (position) {
+                    let lat = position.coords.latitude;
+                    let lng = position.coords.longitude;
+                    setDepartCoords(lat, lng, `GPS`);
+                    map.setView([lat, lng], 14);
+                    document.getElementById('resultats').innerHTML = "Départ GPS fixé. Cliquez sur la carte pour l'arrivée.";
+                }, function () {
+                    alert("Erreur GPS.");
+                }, { enableHighAccuracy: true });
+            } else {
+                alert("GPS non supporté.");
+            }
+        }
+
+        function setDepartCoords(lat, lng, nom) {
+            coordsDepart = { lat: lat, lng: lng };
+            document.getElementById('inputDepart').value = nom;
+            if (markerDepart) map.removeLayer(markerDepart);
+            markerDepart = L.marker([lat, lng]).addTo(map).bindPopup("Départ").openPopup();
+            tracéLigne();
+        }
+
+        function setDestinationCoords(lat, lng, nom) {
+            coordsArrivee = { lat: lat, lng: lng };
+            document.getElementById('inputDestination').value = nom;
+            if (markerArrivee) map.removeLayer(markerArrivee);
+            markerArrivee = L.marker([lat, lng]).addTo(map).bindPopup("Destination").openPopup();
+            tracéLigne();
+        }
+
+        function tracéLigne() {
+            if (coordsDepart && coordsArrivee) {
+                if (polylineTrajet) map.removeLayer(polylineTrajet);
+                polylineTrajet = L.polyline([
+                    [coordsDepart.lat, coordsDepart.lng],
+                    [coordsArrivee.lat, coordsArrivee.lng]
+                ], { color: '#2c3e50', weight: 4, opacity: 0.7, dashArray: '8, 8' }).addTo(map);
+                map.fitBounds(polylineTrajet.getBounds(), { padding: [20, 20] });
+            }
+        }
+
+        async function traiterCalculItineraire() {
+            if (!coordsDepart || !coordsArrivee) {
+                alert("Sélectionnez le départ et l'arrivée.");
+                return;
+            }
+            document.getElementById('resultats').innerHTML = "<i>Calcul en cours...</i>";
+            try {
+                const url = `https://router.project-osrm.org/route/v1/driving/${coordsDepart.lng},${coordsDepart.lat};${coordsArrivee.lng},${coordsArrivee.lat}?overview=false`;
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.routes && data.routes.length > 0) {
+                    afficherDetailItineraire(data.routes[0].distance / 1000, data.routes[0].duration / 60);
+                } else {
+                    calculSecours();
+                }
+            } catch (e) {
+                calculSecours();
+            }
+        }
+
+        function calculSecours() {
+            const itineraire = new Itineraire(coordsDepart, coordsArrivee);
+            const distanceKm = itineraire.calculerDistanceReelle();
+            afficherDetailItineraire(distanceKm, distanceKm * 3.5);
+        }
+
+        function afficherDetailItineraire(distanceKm, dureeMinutes) {
+            const calcul = tarificationService.calculerLeMontant(distanceKm, dureeMinutes);
+            document.getElementById('resultats').innerHTML = `
+                <h4>Détails du Tarif</h4>
+                <b>Distance :</b> ${distanceKm.toFixed(2)} Km<br>
+                <b>Durée :</b> ${Math.round(dureeMinutes)} min<br>
+                <div class="breakdown-list">
+                    Prise en charge : ${tarificationService.prixPriseEnCharge} FC<br>
+                    Distance : ${calcul.partDistance} FC<br>
+                    Temps : ${calcul.partDuree} FC
+                </div>
+                <hr style="margin: 5px 0;">
+                <b>Total :</b> <span class="price-tag">${calcul.montantTotal} FC</span>
+            `;
+        }
+
+        function gererConnexion(e) {
+            e.preventDefault();
+            const msg = document.getElementById('msg-login');
+            msg.className = "status-message success";
+            msg.style.display = "block";
+            msg.innerText = "Connexion réussie !";
+            setTimeout(() => {
+                msg.style.display = "none";
+                afficherVue('trajet');
+            }, 800);
+        }
+    </script>
+</body>
+
+</html>
